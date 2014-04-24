@@ -1,0 +1,56 @@
+.image-upload-wrapper {
+    position: relative;
+    text-align: center;
+    min-height: 50px;
+    min-width: 100px;
+    height: 100%;
+}
+
+.image-upload-overlay {
+    position: absolute;
+    z-index: 2;
+    background-color: rgba(0,0,0,.5);
+    width: 100%;
+    height: 100%;
+}
+
+.image-upload-preview {
+    z-index: 1;
+}
+
+div.image-upload-preview {
+    FILTER: progid:DXImageTransform.Microsoft.AlphaImageLoader(sizingMethod=scale);
+}
+
+img.image-upload-preview {
+    max-height: 100%;
+    max-width: 100%;
+}
+
+.image-upload-centered-div {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.image-upload-wrapper .image-upload-upload {
+    display: none;
+}
+
+.image-upload-wrapper:not(.image-upload-pending):hover .image-upload-upload,
+.image-upload-wrapper.image-upload-dialoging .image-upload-upload {
+    display: table;
+}
+
+.image-upload-confirm {
+    display: table;
+}
+
+.image-upload-wrapper:not(.image-upload-pending) .image-upload-confirm {
+    display: none;
+}
+
+.image-upload-upload input[type='file'] {
+    height: 0px;
+    width: 0px;
+    visibility: hidden;
+}
