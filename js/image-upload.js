@@ -122,8 +122,6 @@
         self = this,
         preview;
 
-      console.log(img);
-
       self.old_file = self.file;
 
       if (!self.file_reader) {
