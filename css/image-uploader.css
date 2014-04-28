@@ -22,9 +22,17 @@ div.image-upload-preview {
     FILTER: progid:DXImageTransform.Microsoft.AlphaImageLoader(sizingMethod=scale);
 }
 
-img.image-upload-preview {
+.image-upload-preview {
     max-height: 100%;
     max-width: 100%;
+}
+
+.image-upload-crop-center {
+    overflow: hidden;
+}
+
+.image-upload-crop-center .image-upload-preview {
+    max-height: none;
 }
 
 .image-upload-centered-div {
@@ -41,11 +49,11 @@ img.image-upload-preview {
     display: table;
 }
 
-.image-upload-confirm {
+.image-upload-confirm-dialog {
     display: table;
 }
 
-.image-upload-wrapper:not(.image-upload-pending) .image-upload-confirm {
+.image-upload-wrapper:not(.image-upload-pending) .image-upload-confirm-dialog {
     display: none;
 }
 

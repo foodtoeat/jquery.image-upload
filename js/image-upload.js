@@ -13,6 +13,9 @@
   var
     defaults = {
       'src': undefined,
+      'name': '',
+      'crop_style': false,
+      'crop_size': undefined
     },
     ImageUploader = function(element, opts) {
       var
@@ -34,20 +37,21 @@
       var
         self = this,
         preview_element = (!self.file_reader ? 'div' : 'img'),
-        read_file;
+        read_file,
+        crop_classes = (self.crop_style ? ' image-upload-crop-' + self.crop_style : '');
 
       self.template_main =
-        '<div class="image-upload-wrapper">' +
+        '<div class="image-upload-wrapper ' + crop_classes + '">' +
           '<div class="image-upload-overlay image-upload-upload">' +
             '<div class="image-upload-centered-div">' +
-              '<input type="file" accept="image/*">' +
+              '<input type="file" name="' + self.name + '" accept="image/*">' +
               '<button type="button" class="btn btn-primary image-upload-upload-button">' +
                 '<span class="glyphicon glyphicon-cloud-upload"></span> ' +
                 'Upload New Image' +
               '</button>' +
             '</div>' +
           '</div>' +
-          '<div class="image-upload-overlay image-upload-confirm">' +
+          '<div class="image-upload-overlay image-upload-confirm-dialog">' +
             '<div class="image-upload-centered-div">' +
               '<div class="btn-group">' +
                 '<button type="button" class="btn btn-danger image-upload-cancel">' +
@@ -88,6 +92,7 @@
 
       self.$el.on('click', '.image-upload-confirm', function() {
         self.$el.find('.image-upload-wrapper').removeClass('image-upload-pending');
+        self.old_file = self.file;
         self.$el.trigger('imageUploader.confirm');
       });
 
@@ -111,7 +116,7 @@
           self.file = this.response;
           if (opts && 'success' in opts) opts.success();
         } else {
-          throw 'Couldn\'t find ulr (' + url + ').';
+          throw 'Couldn\'t find url (' + url + ').';
         }
       };
 
@@ -126,14 +131,37 @@
 
       if (!self.file_reader) {
         // IE < 10
-        preview = self.$el.find('.image-upload-preview')[0];
-        preview.filters('DXImageTransform.Microsoft.AlphaImageLoader').src = img.value;
+        preview = self.$el.find('.image-upload-preview');
+        preview[0].filters('DXImageTransform.Microsoft.AlphaImageLoader').src = img.value;
+        $.proxy(self.crop_image)(preview);
       } else {
-        self.file_reader.onload = function(e) {
-          self.$el.find('.image-upload-preview').attr('src', e.target.result);
-        }
+        preview = self.$el.find('.image-upload-preview');
 
+        self.file_reader.onload = function(e) {
+          preview.attr('src', e.target.result);
+          $.proxy(self.crop_image, self)(preview);
+        }
         self.file_reader.readAsDataURL(img);
+      }
+
+    },
+    crop_image: function(preview) {
+      var self = this,
+        crop_size, crop_width, crop_height,
+        h;
+
+      if (self.crop_size) {
+        crop_size = self.crop_size.split('x');
+        crop_width = crop_size[0];
+        crop_height = crop_size[1];
+
+        h = preview.height();
+
+        if (h > crop_height) {
+          preview.css('margin-top', -(h-crop_height)/2 + 'px');
+        } else {
+          preview.css('margin-top', '0');
+        }
       }
     }
   };
