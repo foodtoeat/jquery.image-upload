@@ -10,102 +10,130 @@
 (function($, window, document, undefined) {
   'use strict';
 
-  var
-    defaults = {
-      'src': undefined,
-      'name': '',
-      'crop_style': false,
-      'crop_size': undefined
-    },
-    ImageUploader = function(element, opts) {
-      var
-        self = this,
-        option_key;
+  var ImageUploader = function(element, opts) {
+    this.$el = $(element);
+    for (var option_key in ImageUploader.defaults) {
+      this[option_key] = opts[option_key];
+    }
+    this._init();
+  };
 
-      self.$el = $(element)
-
-      for (option_key in defaults) {
-        self[option_key] = opts[option_key]
-      }
-
-      self._init();
-    };
+  ImageUploader.defaults = {
+    'src': undefined,
+    'name': 'image',
+    'height': 300,
+    'width': 300,
+    'upload_button_text': 'Upload'
+  };
 
   ImageUploader.prototype = {
     constructor: ImageUploader,
+
+    $: function(selector) {
+      return this.$el.find(selector);
+    },
+ 
     _init: function() {
-      var
-        self = this,
-        preview_element = (!self.file_reader ? 'div' : 'img'),
-        read_file,
-        crop_classes = (self.crop_style ? ' image-upload-crop-' + self.crop_style : '');
+      var self = this;
 
-      self.template_main =
-        '<div class="image-upload-wrapper ' + crop_classes + '">' +
-          '<div class="image-upload-overlay image-upload-upload">' +
-            '<div class="image-upload-centered-div">' +
-              '<input type="file" name="' + self.name + '" accept="image/*">' +
-              '<button type="button" class="btn btn-primary image-upload-upload-button">' +
-                '<span class="glyphicon glyphicon-cloud-upload"></span> ' +
-                'Upload New Image' +
-              '</button>' +
-            '</div>' +
-          '</div>' +
-          '<div class="image-upload-overlay image-upload-confirm-dialog">' +
-            '<div class="image-upload-centered-div">' +
-              '<div class="btn-group">' +
-                '<button type="button" class="btn btn-danger image-upload-cancel">' +
-                  '<span class="glyphicon glyphicon-remove"></span>' +
-                '</button>' +
-                '<button type="button" class="btn btn-success image-upload-confirm">' +
-                  '<span class="glyphicon glyphicon-ok"></span>' +
-                '</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<' + preview_element + ' class="image-upload-preview">' +
-          (preview_element !== 'img' ? '</' + preview_element + '>' : '') +
-        '</div>';
+      self.template = [
+        '<div class="image-upload-wrapper ', (!window.FileReader ? 'no-support' : '') ,'" ',
+          'style="width:',self.width ,'px; height:', self.height, 'px">',
+          // Image upload container
+          '<div class="overlay shadowed upload">',
+            '<input type="file" name="', self.name, '" accept="image/*">',
+            '<div class="bottom">',
+              '<button type="button" class="btn btn-primary" data-action="upload">',
+                '<span class="glyphicon glyphicon-cloud-upload"></span> ',
+                self.upload_button_text,
+              '</button>',
+            '</div>',
+          '</div>',
 
-      self.$el.html(self.template_main);
+          // Yes/No confirm dialog
+          '<div class="overlay confirm-dialog">',
+            '<div class="bottom">',
+              '<div>',
+                '<button type="button" class="btn btn-danger" data-action="upload-cancel">',
+                  '<span class="glyphicon glyphicon-remove"></span>',
+                '</button>',
+                '<button type="button" class="btn btn-success" data-action="upload-confirm">',
+                  '<span class="glyphicon glyphicon-ok"></span>',
+                '</button>',
+              '</div>',
+            '</div>',
+          '</div>',
 
-      self.$el.on('click', '.image-upload-upload-button', function() {
-        self.$el.find('input[type="file"]').click();
-        self.$el.find('.image-upload-wrapper').addClass('image-upload-dialoging');
-      });
+          // Loading screen
+          '<div class="overlay shadowed loader">',
+            '<div class="bottom">',
+              '<div class="loading-image"></div>',
+            '</div>',
+          '</div>',
 
-      self.$el.on('change', '.image-upload-upload input[type="file"]', function() {
-        var wrapper = self.$el.find('.image-upload-wrapper');
-        if (this.files && this.files[0]) {
-          $.proxy(self.read_file,self)(this.files[0]);
-          self.$el.trigger('imageUploader.change');
-          wrapper.addClass('image-upload-pending');
-        }
-        wrapper.removeClass('image-upload-dialoging');
-      });
+          // Error Screen
+          '<div class="overlay shadowed errored">',
+            '<div class="bottom">',
+              '<div data-container="error-text">Error!</div>',
+              '<button class="btn btn-danger" data-action="error-ok">Ok</button>',
+            '</div>',
+          '</div>',
 
-      self.$el.on('click', '.image-upload-cancel', function() {
-        self.$el.find('.image-upload-wrapper').removeClass('image-upload-pending');
-        $.proxy(self.read_file,self)(self.old_file);
-        self.$el.trigger('imageUploader.cancel');
-      });
+          // Error Screen
+          '<div class="overlay unsupported">',
+            '<div class="bottom">Your browser doesn\'t support Image Uploader</div>',
+          '</div>',
 
-      self.$el.on('click', '.image-upload-confirm', function() {
-        self.$el.find('.image-upload-wrapper').removeClass('image-upload-pending');
-        self.old_file = self.file;
-        self.$el.trigger('imageUploader.confirm');
-      });
+          // Preview
+          '<img class="preview" data-conatiner="preview">',
+        '</div>'
+      ].join('');
 
-      $.proxy(self.set_file,self)({
+      self.$el
+        .html(self.template)
+
+        .on('click', '[data-action=upload]', function(evt) {
+          evt.preventDefault();
+          self.$('input[type="file"]').click();
+        })
+
+        .on('change', 'input[type="file"]', function() {
+          var wrapper = self.$('.image-upload-wrapper');
+          if (this.files && this.files[0]) {
+            self.previewFile(this.files[0]);
+            self.$el.trigger('imageUploader.change', this.files[0]);
+            wrapper.addClass('confirming');
+          }
+        })
+
+        .on('click', '[data-action=upload-cancel]', function(evt) {
+          evt.preventDefault();
+          self.$('.image-upload-wrapper').removeClass('confirming');
+          self.revert();
+          self.$el.trigger('imageUploader.cancel');
+        })
+
+        .on('click', '[data-action=upload-confirm]', function(evt) {
+          evt.preventDefault();
+          self.$('.image-upload-wrapper').removeClass('confirming');
+          self.$el.trigger( 'imageUploader.confirm', self.$('input[type="file"]')[0].files[0]);
+        })
+
+        .on('click', '[data-action=error-ok]', function(evt) {
+          evt.preventDefault();
+          self.$('.image-upload-wrapper').removeClass('errored');
+        });
+
+      self.setFile({
         success: function() {
-          $.proxy(self.read_file,self)(self.file);
+          self.previewFile(self.file);
         }
       });
     },
-    file_reader: (window.FileReader ? new FileReader() : undefined),
-    set_file: function(opts) {
-      var self = this;
 
+    setFile: function(cbs) {
+      // Loads file from self.src.
+      var self = this;
       if (!self.src) throw 'ImageUploader requires a src attribute.';
 
       var xhr = new XMLHttpRequest();
@@ -114,7 +142,7 @@
       xhr.onload = function() {
         if (this.status == 200) {
           self.file = this.response;
-          if (opts && 'success' in opts) opts.success();
+          if (cbs && 'success' in cbs) cbs.success();
         } else {
           throw 'Couldn\'t find url (' + url + ').';
         }
@@ -122,47 +150,65 @@
 
       xhr.send();
     },
-    read_file: function(img) {
-      var
-        self = this,
-        preview;
 
-      self.old_file = self.file;
+    previewFile: function(img) {
+      var self = this;
+      var preview = self.$('.preview');
+      self.preview_file = img;
 
-      if (!self.file_reader) {
-        // IE < 10
-        preview = self.$el.find('.image-upload-preview');
-        preview[0].filters('DXImageTransform.Microsoft.AlphaImageLoader').src = img.value;
-        $.proxy(self.crop_image)(preview);
-      } else {
-        preview = self.$el.find('.image-upload-preview');
-
-        self.file_reader.onload = function(e) {
-          preview.attr('src', e.target.result);
-          $.proxy(self.crop_image, self)(preview);
-        }
-        self.file_reader.readAsDataURL(img);
-      }
-
+      var file_reader = new FileReader();
+      file_reader.onload = function(e) {
+        preview.attr('src', e.target.result);
+        self.cropImage(preview);
+      };
+      file_reader.readAsDataURL(img);
     },
-    crop_image: function(preview) {
-      var self = this,
-        crop_size, crop_width, crop_height,
-        h;
 
-      if (self.crop_size) {
-        crop_size = self.crop_size.split('x');
-        crop_width = crop_size[0];
-        crop_height = crop_size[1];
+    cropImage: function(preview) {
+      preview.css({ 'width': 'initial', 'height': 'initial' });
 
-        h = preview.height();
+      var h = preview.height();
+      var w = preview.width();
 
-        if (h > crop_height) {
-          preview.css('margin-top', -(h-crop_height)/2 + 'px');
-        } else {
-          preview.css('margin-top', '0');
-        }
+      var i_ratio = (h/w);
+      var ratio = this.height / this.width;
+      var new_h, new_w;
+
+      if (ratio < h/w) {
+        new_h = Math.floor(this.width * i_ratio);
+        new_w = this.width;
+      } else {
+        new_h = this.height;
+        new_w = Math.floor(this.height / i_ratio);
       }
+
+      preview.css({
+        'height': new_h + 'px',
+        'width': new_w + 'px',
+        'margin-left': -(new_w - this.width)/2 + 'px',
+        'margin-top': -(new_h - this.height)/2 + 'px'
+      });
+    },
+
+    loading: function() {
+      this.$('.image-upload-wrapper').addClass('loading');
+    },
+
+    saved: function() {
+      this.$('.image-upload-wrapper').removeClass('loading');
+      this.file = this.preview_file;
+    },
+
+    error: function(html) {
+      this.$('.image-upload-wrapper').removeClass('loading');
+      this.$('.image-upload-wrapper').addClass('errored');
+      this.revert();
+      this.$el.find('[data-container=error-text]').html(html);
+    },
+
+    revert: function() {
+      this.previewFile(this.file);
+      this.$('input[type="file"]').val('');
     }
   };
 
@@ -176,9 +222,10 @@
         $this = $(this),
         data = $this.data('imageUploader'),
         options = typeof option === 'object' && option;
-
       if (!data) {
-        $this.data('imageUploader', (data = new ImageUploader(this, $.extend({}, defaults, options, $this.data()))));
+        $this.data('imageUploader', (
+          data = new ImageUploader(this, $.extend({}, ImageUploader.defaults, options, $this.data()))
+        ));
       }
 
       if (typeof option === 'string') {
